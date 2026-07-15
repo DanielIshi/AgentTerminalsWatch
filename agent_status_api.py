@@ -20,8 +20,22 @@ from typing import Optional
 from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel
 
-# Resolve repo root relative to this file
-_REPO_ROOT = Path(__file__).parent.parent.parent.parent
+# Resolve repo root by walking up until agents.json is found.
+# The file lives at /home/claude/projects/AgentTerminalsWatch/agent_status_api.py
+# but agents.json is in /home/claude/clawd — hard-coded parent counts break.
+def _find_repo_root() -> Path:
+    # Prefer explicit env var (deployment / tests), then walk up, then fall back
+    # to the known clawd location.
+    import os
+    if env := os.environ.get("CLAWD_REPO_ROOT"):
+        return Path(env)
+    here = Path(__file__).resolve()
+    for candidate in [here.parent, *here.parents]:
+        if (candidate / "agents.json").exists():
+            return candidate
+    return Path("/home/claude/clawd")
+
+_REPO_ROOT = _find_repo_root()
 _AGENTS_JSON = _REPO_ROOT / "agents.json"
 _AGENT_STATUS_PY = _REPO_ROOT / "SCRIPTS" / "ops" / "agent-status.py"
 

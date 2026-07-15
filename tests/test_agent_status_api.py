@@ -245,3 +245,36 @@ class TestRestartAgent:
         monkeypatch.setattr(api_module, "_REPO_ROOT", tmp_path)
         r = client.post("/agents/CEO/restart")
         assert r.json()["name"] == "CEO"
+
+
+# ── REPO_ROOT resolution ──────────────────────────────────────────────────────
+
+class TestRepoRootResolution:
+    def test_repo_root_points_to_clawd_not_home(self):
+        # agent_status_api.py lives at .../clawd/... — REPO_ROOT must resolve to
+        # the clawd directory (contains agents.json), not /home which is 4 levels
+        # up on the deployment path /home/claude/projects/<repo>/agent_status_api.py.
+        assert (api_module._REPO_ROOT / "agents.json").exists(), (
+            f"_REPO_ROOT={api_module._REPO_ROOT} does not contain agents.json — "
+            "path resolution is broken (probably wrong number of .parent calls)"
+        )
+
+
+# ── Restart-endpoint command-injection guard ──────────────────────────────────
+
+class TestRestartAgentInjection:
+    def test_restart_rejects_shell_metachars_in_name(self, monkeypatch, tmp_path):
+        _mock_ssot(monkeypatch)
+        _mock_live(monkeypatch)
+        monkeypatch.setattr(api_module, "_REPO_ROOT", tmp_path)
+        # A malicious name that would break out of the shell context if pasted raw.
+        # The name is not in the SSOT — must 404 (not accidentally queued).
+        r = client.post("/agents/CEO;rm -rf ~/restart")
+        # FastAPI routes may URL-decode the semicolon; either 404 or 400 is OK,
+        # but NOT 200-with-queued-file.
+        assert r.status_code in (400, 404)
+        # No malicious script written.
+        assert not (tmp_path / "state" / "pending_actions").exists() or \
+            not any("rm" in f.read_text() for f in
+                    (tmp_path / "state" / "pending_actions").iterdir()
+                    if f.is_file())
