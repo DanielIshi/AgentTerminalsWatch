@@ -4,19 +4,27 @@ agent_status_api — FastAPI backend for AgentTerminalsWatch.
 Wraps SCRIPTS/ops/agent-status.py data via agents.json and subprocess.
 
 Routes:
-  GET  /agents              — all agents (optional ?state= filter: ACTIVE|WAITING|DEAD)
-  GET  /agents/{name}       — single agent by name
-  GET  /servers             — server list with host/ip
-  POST /agents/{name}/restart — queue restart command (writes to state/pending_actions/)
+  GET  /agents                  — all agents (optional ?state= filter: ACTIVE|WAITING|DEAD)
+  GET  /agents/{name}           — single agent by name
+  GET  /servers                 — server list with host/ip
+  POST /agents/{name}/restart   — queue restart command (writes to state/pending_actions/)
+  POST /agents/{name}/kill      — queue teammate kill command
+  POST /agents/{name}/respawn   — queue teammate start command
+
+ntfy integration:
+  ntfy_dead_alert(dead_agents, ntfy_url, bearer_token) — POST to ntfy when agents are DEAD
+  Raises RuntimeError on HTTP failure (fail fast — no silent fallback per Daniel-Direktive).
 """
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
 from typing import Optional
 
+import requests
 from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel
 
@@ -63,6 +71,11 @@ class RestartResponse(BaseModel):
     name: str
     queued: bool
     message: str
+
+
+# KillResponse and RespawnResponse share the same shape as RestartResponse.
+KillResponse = RestartResponse
+RespawnResponse = RestartResponse
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -174,3 +187,87 @@ def restart_agent(name: str):
         queued=True,
         message=f"Restart queued at {restart_file.name} — run new_session_startup.sh to execute",
     )
+
+
+@app.post("/agents/{name}/kill", response_model=KillResponse)
+def kill_agent(name: str):
+    """Queue a teammate kill command for the given agent."""
+    ssot = _load_agents_json()
+    known = {a.get("name") for a in ssot.get("agents", [])}
+    if name not in known:
+        raise HTTPException(status_code=404, detail=f"Agent '{name}' not found")
+
+    pending_dir = _REPO_ROOT / "state" / "pending_actions"
+    pending_dir.mkdir(parents=True, exist_ok=True)
+    kill_file = pending_dir / f"kill_{name}.sh"
+    kill_file.write_text(
+        f"#!/bin/bash\n# Auto-generated kill request for {name}\n"
+        f"teammate kill {name}\n"
+    )
+    return KillResponse(
+        name=name,
+        queued=True,
+        message=f"Kill queued at {kill_file.name} — run new_session_startup.sh to execute",
+    )
+
+
+@app.post("/agents/{name}/respawn", response_model=RespawnResponse)
+def respawn_agent(name: str):
+    """Queue a teammate start command to respawn the given agent."""
+    ssot = _load_agents_json()
+    known = {a.get("name") for a in ssot.get("agents", [])}
+    if name not in known:
+        raise HTTPException(status_code=404, detail=f"Agent '{name}' not found")
+
+    pending_dir = _REPO_ROOT / "state" / "pending_actions"
+    pending_dir.mkdir(parents=True, exist_ok=True)
+    respawn_file = pending_dir / f"respawn_{name}.sh"
+    respawn_file.write_text(
+        f"#!/bin/bash\n# Auto-generated respawn request for {name}\n"
+        f"teammate start {name}\n"
+    )
+    return RespawnResponse(
+        name=name,
+        queued=True,
+        message=f"Respawn queued at {respawn_file.name} — run new_session_startup.sh to execute",
+    )
+
+
+# ── ntfy integration ──────────────────────────────────────────────────────────
+
+def ntfy_dead_alert(
+    dead_agents: list[str],
+    ntfy_url: str,
+    bearer_token: str,
+) -> None:
+    """Send a push notification to ntfy when agents are in DEAD state.
+
+    Raises RuntimeError on HTTP failure — fail fast, no silent fallback
+    (Daniel-Direktive: EHRLICHES SCHEITERN).
+
+    Args:
+        dead_agents: List of agent names in DEAD state. No-op if empty.
+        ntfy_url: Full ntfy topic URL, e.g. https://ntfy.agentic-movers.com/agent-alerts
+        bearer_token: ntfy bearer token for Authorization header.
+    """
+    if not dead_agents:
+        return
+
+    agent_list = ", ".join(dead_agents)
+    message = f"DEAD agents detected: {agent_list}"
+
+    response = requests.post(
+        ntfy_url,
+        data=message.encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {bearer_token}",
+            "Title": "AgentTerminalsWatch Alert",
+            "Priority": "high",
+            "Tags": "warning,robot",
+        },
+    )
+
+    if response.status_code < 200 or response.status_code >= 300:
+        raise RuntimeError(
+            f"ntfy POST failed: HTTP {response.status_code} — {response.text}"
+        )

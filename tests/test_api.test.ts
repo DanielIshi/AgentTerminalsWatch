@@ -21,7 +21,7 @@
  */
 
 import { vi } from "vitest";
-import { fetchAgents, fetchAgent, fetchServers, restartAgent } from "../src/api";
+import { fetchAgents, fetchAgent, fetchServers, restartAgent, killAgent, respawnAgent } from "../src/api";
 
 const MOCK_AGENTS = [
   { name: "CEO", server: "netcup1", state: "ACTIVE", technical_state: "working", role: "ceo", session: "CEO:0" },
@@ -151,5 +151,40 @@ describe("BASE_URL", () => {
     await fetchAgents();
     const url = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
     expect(url).toContain("localhost:8000");
+  });
+});
+
+describe("killAgent", () => {
+  it("POSTs to /agents/{name}/kill", async () => {
+    mockFetch(MOCK_RESTART);
+    await killAgent("ICT");
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/agents/ICT/kill"),
+      expect.objectContaining({ method: "POST" })
+    );
+  });
+
+  it("returns KillResponse with queued=true", async () => {
+    mockFetch(MOCK_RESTART);
+    const result = await killAgent("Marketing");
+    expect(result.queued).toBe(true);
+    expect(result.name).toBe("ICT"); // mock returns MOCK_RESTART fixture
+  });
+});
+
+describe("respawnAgent", () => {
+  it("POSTs to /agents/{name}/respawn", async () => {
+    mockFetch(MOCK_RESTART);
+    await respawnAgent("CEO");
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/agents/CEO/respawn"),
+      expect.objectContaining({ method: "POST" })
+    );
+  });
+
+  it("returns RespawnResponse with queued=true", async () => {
+    mockFetch(MOCK_RESTART);
+    const result = await respawnAgent("CEO");
+    expect(result.queued).toBe(true);
   });
 });

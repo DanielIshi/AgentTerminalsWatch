@@ -56,3 +56,15 @@ export function restartAgent(name: string): Promise<RestartResponse> {
     method: "POST",
   });
 }
+
+export function killAgent(name: string): Promise<RestartResponse> {
+  return _fetch<RestartResponse>(`/agents/${encodeURIComponent(name)}/kill`, {
+    method: "POST",
+  });
+}
+
+export function respawnAgent(name: string): Promise<RestartResponse> {
+  return _fetch<RestartResponse>(`/agents/${encodeURIComponent(name)}/respawn`, {
+    method: "POST",
+  });
+}

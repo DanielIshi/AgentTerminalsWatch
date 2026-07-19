@@ -6,22 +6,41 @@
  */
 import React, { useEffect, useState } from "react";
 import type { AgentInfo, ServerInfo } from "./api";
-import { fetchAgents, fetchServers, restartAgent } from "./api";
+import { fetchAgents, fetchServers, killAgent, respawnAgent } from "./api";
 import { AgentStatusBadge } from "./AgentStatusBadge";
 import { useDeadAgentAlert } from "./useDeadAgentAlert";
 import { useKpiAlert, buildKpiSummary } from "./useKpiAlert";
 import type { AgentWithCommits } from "./useKpiAlert";
 import { useServerFilter } from "./useServerFilter";
 
-function AgentRow({ agent, onRestart }: { agent: AgentInfo; onRestart: (name: string) => void }) {
+function AgentRow({
+  agent,
+  onKill,
+  onRespawn,
+}: {
+  agent: AgentInfo;
+  onKill: (name: string) => void;
+  onRespawn: (name: string) => void;
+}) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: "1px solid #333" }}>
       <AgentStatusBadge state={agent.state} />
       <span style={{ flex: 1 }}>{agent.name}</span>
       <span style={{ color: "#888", fontSize: 12 }}>{agent.server}</span>
+      {agent.state !== "DEAD" && (
+        <button
+          onClick={() => onKill(agent.name)}
+          style={{ fontSize: 11, padding: "2px 6px", background: "#7f1d1d", color: "#fca5a5", border: "none", borderRadius: 3, cursor: "pointer" }}
+        >
+          Kill
+        </button>
+      )}
       {agent.state === "DEAD" && (
-        <button onClick={() => onRestart(agent.name)} style={{ fontSize: 11, padding: "2px 6px" }}>
-          Restart
+        <button
+          onClick={() => onRespawn(agent.name)}
+          style={{ fontSize: 11, padding: "2px 6px", background: "#14532d", color: "#86efac", border: "none", borderRadius: 3, cursor: "pointer" }}
+        >
+          Respawn
         </button>
       )}
     </div>
@@ -71,12 +90,21 @@ export default function App() {
     };
   }, []);
 
-  const handleRestart = async (name: string) => {
+  const handleKill = async (name: string) => {
     try {
-      await restartAgent(name);
-      alert(`Restart queued for ${name}`);
+      await killAgent(name);
+      alert(`Kill queued for ${name}`);
     } catch {
-      alert(`Restart failed for ${name}`);
+      alert(`Kill failed for ${name}`);
+    }
+  };
+
+  const handleRespawn = async (name: string) => {
+    try {
+      await respawnAgent(name);
+      alert(`Respawn queued for ${name}`);
+    } catch {
+      alert(`Respawn failed for ${name}`);
     }
   };
 
@@ -144,7 +172,7 @@ export default function App() {
 
       {/* Agent list */}
       {displayAgents.map((a) => (
-        <AgentRow key={a.name} agent={a} onRestart={handleRestart} />
+        <AgentRow key={a.name} agent={a} onKill={handleKill} onRespawn={handleRespawn} />
       ))}
 
       {displayAgents.length === 0 && (
