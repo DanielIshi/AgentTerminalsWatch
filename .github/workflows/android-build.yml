@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 # R240 (2026-07-19): self-hosted runner — FREE-ONLY, no paid ubuntu-latest. See COMPANY_RULES.md R240.
-# Note: Node via setup-node@v4, Python via setup-python@v5, Java via setup-java@v4.
+# Note: Node 22 (cap sync requires >=22) via setup-node@v4, Java via setup-java@v4.
 # Android SDK: android-actions/setup-android@v3 works on self-hosted Linux.
 # Prereq: ANDROID_SDK_ROOT must be set or setup-android installs it to ~/Android/Sdk.
 
@@ -22,7 +22,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: "npm"
 
       - name: Install dependencies
@@ -48,7 +48,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: "npm"
 
       - name: Install dependencies
