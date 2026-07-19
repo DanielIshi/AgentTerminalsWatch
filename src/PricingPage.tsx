@@ -286,7 +286,7 @@ export default function PricingPage({ onCheckout, onWaiverLog }: PricingPageProp
           {" · "}
           <a href="/datenschutz" style={{ color: "#7c3aed", textDecoration: "none" }}>Datenschutz</a>
           {" · "}
-          <a href="/widerrufsrecht" style={{ color: "#7c3aed", textDecoration: "none" }}>Widerrufsrecht</a>
+          <a href="/legal/widerrufsbelehrung" style={{ color: "#7c3aed", textDecoration: "none" }}>Widerrufsrecht</a>
           {" · "}
           <a href="/impressum" style={{ color: "#7c3aed", textDecoration: "none" }}>Impressum</a>
         </p>

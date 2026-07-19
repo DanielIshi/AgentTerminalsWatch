@@ -202,9 +202,9 @@ Verbraucher AKTIV zustimmen, sein Widerrufsrecht zu verlieren.
 
 **Text-Quelle:** `atw_rechtsdokumente_paket_2026-07-19.md` §3a (Bratschke Solutions GmbH)
 
-**TODO (LEGAL nachliefern):**
-- [ ] Widerrufsbelehrung HTML-Snippet für inline-Einbettung unter Checkbox
-- [ ] Muster-Widerrufsformular PDF-Link (aktuell Placeholder `/legal/muster-widerrufsformular`)
+**LEGAL-Snippet-Lieferung (2026-07-19):**
+Source: `05_LEGAL/deliverables/atw_widerruf_html_snippet_2026-07-19.md` (LEGAL-approved, Aitava-geprüft).
+Eingebettet in `stripe_webhook.py` als `WIDERRUFSBELEHRUNG_HTML` + `MUSTER_WIDERRUFSFORMULAR_HTML`.
 
 ---
 
@@ -219,14 +219,28 @@ Verbraucher AKTIV zustimmen, sein Widerrufsrecht zu verlieren.
 - [x] **Impressum** — commit `2686fac85`
 - [x] **§312j Button-Text** — "Zahlungspflichtig bestellen" implementiert + CI-Check
 - [x] **§356 Widerrufsverzicht** — Checkbox implementiert, LEGAL-Text 2026-07-19 final
+- [x] **K3: §312f Confirmation-Mail** — send_confirmation_email() in stripe_webhook.py
+      implementiert. SMTP via MAIL_INFO_USER/MAIL_INFO_PASS (Fallback: BREVO_API_KEY).
+      Enthält Widerrufsbelehrung + Muster-Formular als dauerhaftem Datenträger.
+      Log: `state/atw/confirmation_mail_log.jsonl`. Tests T18–T22 grün.
+- [x] **K4: §356 Widerrufsbelehrung-Seiten** — Routes `/legal/widerrufsbelehrung` +
+      `/legal/muster-widerrufsformular` in stripe_webhook.py implementiert.
+      Content: LEGAL-Snippets 1+2 (atw_widerruf_html_snippet_2026-07-19.md).
+      PricingPage-Link aktualisiert von `/widerrufsrecht` → `/legal/widerrufsbelehrung`.
+      Tests T23–T24 grün.
 - [ ] **Stripe DPA (Data Processing Agreement)** signed via Stripe Dashboard
-      (Settings → Legal → Data Processing Agreement).
+      (Settings → Legal → Data Processing Agreement). **Daniel-Action erforderlich.**
 - [ ] **Stripe Compliance Checklist** completed:
       [https://docs.stripe.com/get-started/checklist/go-live](https://docs.stripe.com/get-started/checklist/go-live)
-- [ ] **§356 Widerrufsbelehrung HTML-Snippet** nachgeliefert von LEGAL (TODO above)
 - [ ] **§5 UWG SLA-Wording** in Preisliste geklärt (Variante A/B — LEGAL/Marketing)
 - [ ] **LEGAL team sign-off** in Notion (GH#709 LEGAL Launch-Gate task).
 - [ ] Daniel explicit approval for sk_live_ key deployment.
+
+### Daniel-Action Items (LEGAL Launch-Gate)
+1. `BREVO_API_KEY` in `/home/claude/clawd/.env` eintragen (app.brevo.com/settings/keys/api) — für SMTP-Relay-Fallback
+2. Stripe DPA signing im Stripe Dashboard (Settings → Legal)
+3. Stripe Compliance Checklist abarbeiten
+4. LEGAL sign-off in Notion GH#709
 
 ---
 
