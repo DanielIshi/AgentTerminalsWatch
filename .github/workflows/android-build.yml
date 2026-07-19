@@ -7,10 +7,15 @@ on:
     branches: [main, master]
   workflow_dispatch:
 
+# R240 (2026-07-19): self-hosted runner — FREE-ONLY, no paid ubuntu-latest. See COMPANY_RULES.md R240.
+# Note: Node via setup-node@v4, Python via setup-python@v5, Java via setup-java@v4.
+# Android SDK: android-actions/setup-android@v3 works on self-hosted Linux.
+# Prereq: ANDROID_SDK_ROOT must be set or setup-android installs it to ~/Android/Sdk.
+
 jobs:
   test:
     name: Python + TS Tests
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, hostinger]
     steps:
       - uses: actions/checkout@v4
 
@@ -32,14 +37,14 @@ jobs:
           python-version: "3.11"
 
       - name: Install Python deps
-        run: pip install fastapi httpx pytest pytest-mock pydantic requests uvicorn
+        run: pip install fastapi httpx pytest pytest-mock pydantic requests uvicorn stripe
 
       - name: Run Python tests
         run: python3 -m pytest -v
 
   build-apk:
     name: Build Android APK
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, hostinger]
     needs: test
     steps:
       - uses: actions/checkout@v4
