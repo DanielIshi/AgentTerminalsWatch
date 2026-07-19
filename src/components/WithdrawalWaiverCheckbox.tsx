@@ -26,22 +26,38 @@ import React from "react";
  *
  * Unterschied zu §3a-Langfassung im Paket: LEGAL hat Final-Formulierung
  * auf BGH-Muster (§356 Abs.4 BGB, Art.246a §1 Abs.2 Nr.1 EGBGB) gekürzt.
+ *
+ * Bestätigt durch: atw_widerruf_html_snippet_2026-07-19.md Snippet 3 (Anwalts-Letztprüfung).
  */
 export const WITHDRAWAL_WAIVER_TEXT =
   "Ich verlange ausdrücklich, dass Sie mit der Ausführung der Dienstleistung " +
   "vor Ablauf der Widerrufsfrist beginnen. Mir ist bekannt, dass mein " +
   "Widerrufsrecht mit vollständiger Vertragserfüllung erlischt." as const;
 
-/** Logging-Payload nach §356 Nachweis-Pflicht (BGH). */
+/**
+ * Versionierungskennung für Belehrungs-Nachweis (LEGAL-Kriterium #5, 2026-07-19).
+ * Format: waiver_v{N}_{YYYY-MM-DD}
+ * Bei Textänderung durch LEGAL: bump N + Datum.
+ * Wird in waiver_log.db + confirmation_mail_log.jsonl als `waiver_version` gespeichert.
+ */
+export const WAIVER_VERSION = "waiver_v1_2026-07-19" as const;
+
+/** Logging-Payload nach §356 Nachweis-Pflicht (BGH) + LEGAL-Kriterium #5. */
 export interface WaiverLogEntry {
   /** ISO-Timestamp der Bestätigung */
   waiver_accepted_at: string;
   /**
-   * SHA-256 des exakten WITHDRAWAL_WAIVER_TEXT.
+   * FNV-1a Hash des exakten WITHDRAWAL_WAIVER_TEXT (sync).
+   * Backend (stripe_webhook.py) ersetzt durch echten SHA-256 für Stripe-Metadata.
    * Sichert, dass zum Zeitpunkt der Zustimmung kein anderer Text gezeigt wurde.
-   * Wird als Stripe-Metadata + ggf. state/atw/waiver_log.db gespeichert.
    */
   waiver_text_hash: string;
+  /**
+   * Belehrungs-Version für historischen Nachweis (LEGAL-Kriterium #5, 2026-07-19).
+   * Zeigt welche Fassung der Belehrung der Nutzer gesehen hat.
+   * Format: "waiver_v{N}_{YYYY-MM-DD}" — bump bei jeder LEGAL-Textänderung.
+   */
+  waiver_version: string;
 }
 
 export interface WithdrawalWaiverCheckboxProps {
@@ -86,6 +102,7 @@ export function WithdrawalWaiverCheckbox({
       onWaiverAccepted({
         waiver_accepted_at: new Date().toISOString(),
         waiver_text_hash: computeWaiverTextHash(WITHDRAWAL_WAIVER_TEXT),
+        waiver_version: WAIVER_VERSION,
       });
     }
   };

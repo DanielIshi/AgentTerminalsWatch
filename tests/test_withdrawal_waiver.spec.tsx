@@ -27,6 +27,7 @@ import { vi } from "vitest";
 import {
   WithdrawalWaiverCheckbox,
   WITHDRAWAL_WAIVER_TEXT,
+  WAIVER_VERSION,
   computeWaiverTextHash,
 } from "../src/components/WithdrawalWaiverCheckbox";
 import type { WaiverLogEntry } from "../src/components/WithdrawalWaiverCheckbox";
@@ -295,5 +296,43 @@ describe("T14: waiver-missing-hint visibility", () => {
     expect(
       screen.queryByTestId("waiver-missing-hint")
     ).not.toBeInTheDocument();
+  });
+});
+
+// ── T16: waiver_version field in WaiverLogEntry ──────────────────────────────
+describe("T16: waiver_version field in WaiverLogEntry (LEGAL Kriterium #5)", () => {
+  it("onWaiverAccepted includes waiver_version field", () => {
+    const onWaiverAccepted = vi.fn<[WaiverLogEntry], void>();
+    render(
+      <WithdrawalWaiverCheckbox
+        checked={false}
+        onChange={vi.fn()}
+        onWaiverAccepted={onWaiverAccepted}
+      />
+    );
+    fireEvent.click(screen.getByTestId("withdrawal-waiver-checkbox"));
+    const entry = onWaiverAccepted.mock.calls[0][0];
+    expect(entry.waiver_version).toBeDefined();
+    expect(entry.waiver_version).toBe(WAIVER_VERSION);
+  });
+
+  it("waiver_version matches format waiver_vN_YYYY-MM-DD", () => {
+    expect(WAIVER_VERSION).toMatch(/^waiver_v\d+_\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it("waiver_version is 'waiver_v1_2026-07-19' (current LEGAL-approved version)", () => {
+    expect(WAIVER_VERSION).toBe("waiver_v1_2026-07-19");
+  });
+});
+
+// ── T17: WAIVER_VERSION constant present and exported ────────────────────────
+describe("T17: WAIVER_VERSION constant exported", () => {
+  it("WAIVER_VERSION is a non-empty string", () => {
+    expect(typeof WAIVER_VERSION).toBe("string");
+    expect(WAIVER_VERSION.length).toBeGreaterThan(0);
+  });
+
+  it("WAIVER_VERSION starts with 'waiver_v'", () => {
+    expect(WAIVER_VERSION).toMatch(/^waiver_v/);
   });
 });
