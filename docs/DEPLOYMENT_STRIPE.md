@@ -156,21 +156,75 @@ CREATE TABLE subscriptions (
 
 ---
 
+## §312j BGB Compliance — Button-Text
+
+**Gesetzliche Pflicht (§312j Abs. 3 BGB — Fernabsatzrecht):**
+
+Der Bestell-Button MUSS exakt beschriftet sein mit:
+
+> **"Zahlungspflichtig bestellen"**
+
+Dieser Text ist im `PaymentButton`-Component als Konstante `BUTTON_TEXT` hinterlegt
+(`src/components/PaymentButton.tsx`) und darf NICHT ohne LEGAL-Approval geändert werden.
+
+**LEGAL-Basis:**
+- AGB: commit `b52913c75`
+- Datenschutz + AVV + Impressum: commit `2686fac85`
+
+**Verbotene Alternativ-Texte (§312j-Verstoß):**
+- "Bestellen", "Weiter", "Anmelden", "Jetzt starten", "Buchen"
+
+**CI-Check:**
+```bash
+bash scripts/check_button_312j.sh   # Exit 0 = clean, Exit 1 = violation
+```
+
+---
+
+## §356 BGB Compliance — Widerrufsverzicht-Checkbox
+
+**Gesetzliche Pflicht (§356 Abs. 4/5 BGB i.V.m. §312g BGB):**
+
+Bei sofortigem SaaS-Dienstbeginn (Zugriff direkt nach Bestellung) muss der
+Verbraucher AKTIV zustimmen, sein Widerrufsrecht zu verlieren.
+
+**LEGAL-finaler Checkbox-Text (2026-07-19, BGH-konform):**
+
+> "Ich verlange ausdrücklich, dass Sie mit der Ausführung der Dienstleistung
+> vor Ablauf der Widerrufsfrist beginnen. Mir ist bekannt, dass mein
+> Widerrufsrecht mit vollständiger Vertragserfüllung erlischt."
+
+**Implementation:** `src/components/WithdrawalWaiverCheckbox.tsx`
+- Default: **unchecked** (aktive Zustimmung Pflicht — kein Pre-Tick, BGH)
+- `PaymentButton` bleibt disabled bis Checkbox aktiv bestätigt
+- Bei Bestätigung: `WaiverLogEntry { waiver_accepted_at: ISO, waiver_text_hash: hex }`
+  → Stripe-Checkout-Metadata + optional `state/atw/waiver_log.db`
+
+**Text-Quelle:** `atw_rechtsdokumente_paket_2026-07-19.md` §3a (Bratschke Solutions GmbH)
+
+**TODO (LEGAL nachliefern):**
+- [ ] Widerrufsbelehrung HTML-Snippet für inline-Einbettung unter Checkbox
+- [ ] Muster-Widerrufsformular PDF-Link (aktuell Placeholder `/legal/muster-widerrufsformular`)
+
+---
+
 ## LEGAL Launch-Gate
 
 **LIVE payments are blocked until ALL of the following are cleared:**
 
-- [ ] **AGB (Terms of Service)** updated to include subscription billing terms,
-      cancellation policy (14-day EU statutory withdrawal right for digital services),
-      and auto-renewal disclosure.
-- [ ] **Datenschutzerklärung (Privacy Policy)** updated: Stripe listed as payment
-      processor under Art. 28 DSGVO (Auftragsverarbeitungsvertrag with Stripe).
-- [ ] **Impressum** updated: add legal notice about subscription pricing and
-      right of withdrawal.
+- [x] **AGB (Terms of Service)** — commit `b52913c75` (inkl. §3a Widerrufsrecht,
+      §312g, Kündigung, Datenlöschung 30 Tage, §6 Pane-Screenshots)
+- [x] **Datenschutzerklärung** — commit `2686fac85` (Stripe als Verantwortlicher,
+      Pane-Screenshot-Retention, AVV)
+- [x] **Impressum** — commit `2686fac85`
+- [x] **§312j Button-Text** — "Zahlungspflichtig bestellen" implementiert + CI-Check
+- [x] **§356 Widerrufsverzicht** — Checkbox implementiert, LEGAL-Text 2026-07-19 final
 - [ ] **Stripe DPA (Data Processing Agreement)** signed via Stripe Dashboard
       (Settings → Legal → Data Processing Agreement).
 - [ ] **Stripe Compliance Checklist** completed:
       [https://docs.stripe.com/get-started/checklist/go-live](https://docs.stripe.com/get-started/checklist/go-live)
+- [ ] **§356 Widerrufsbelehrung HTML-Snippet** nachgeliefert von LEGAL (TODO above)
+- [ ] **§5 UWG SLA-Wording** in Preisliste geklärt (Variante A/B — LEGAL/Marketing)
 - [ ] **LEGAL team sign-off** in Notion (GH#709 LEGAL Launch-Gate task).
 - [ ] Daniel explicit approval for sk_live_ key deployment.
 
