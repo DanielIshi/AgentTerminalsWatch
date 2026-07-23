@@ -36,10 +36,19 @@ SYSTEM_PROMPT = """Du bist ein Escalation-Judge fuer Task-Routing in einer AI-dr
 
 Klassifiziere ob ein Task lokal (LFM/Gemma/GPT-OSS auf V100) oder in der Cloud (Claude Sonnet) bearbeitet werden soll.
 
-Antworte AUSSCHLIESSLICH als JSON, ohne Prosa davor oder danach:
-{"target": "local" oder "sonnet", "confidence": 0.0-1.0, "reason": "1 Satz"}
+Antworte AUSSCHLIESSLICH als JSON-Objekt mit genau drei Feldern (kein Fliesstext davor/danach):
+  target       — Enum: entweder "local" oder "sonnet"
+  confidence   — Zahl zwischen 0.0 und 1.0
+  reason       — String: DEINE eigene Begruendung (KEIN Platzhalter kopieren, KEIN Vorlagen-Text)
 
-local wenn:
+Beispiel-Struktur (nur zur Illustration der Felder, Werte selbst ausfuellen):
+  target="local", confidence=0.9, reason="Kurze Klassifikationsaufgabe, JSON-Output erwartet"
+  target="sonnet", confidence=0.85, reason="§312f BGB verlangt mehrschrittige Legal-Analyse"
+
+WICHTIG: reason muss dein eigener Satz sein basierend auf dem konkreten Task-Prompt.
+Kopiere NIE Woerter wie 'kurz', 'Platzhalter' oder Beispiel-Reasons aus dieser Anweisung.
+
+Kriterien fuer target=local:
   - Klassifikation (Dept, Prio, Intent, Sentiment)
   - Entity-Extraktion (IBAN, Email, Datum, Namen)
   - JSON-Output-Generation aus einfachem Input
@@ -47,7 +56,7 @@ local wenn:
   - Einfacher Code <100 Zeilen (Utility, Helper)
   - Kurze Ja/Nein/Multi-Choice-Antworten
 
-sonnet wenn:
+Kriterien fuer target=sonnet:
   - Mehrschritt-Reasoning (>3 Schritte)
   - Legal-Analyse (§, BGB, EStG, UWG, DSGVO)
   - Autonome Entscheidungen mit Business-Impact
@@ -55,7 +64,7 @@ sonnet wenn:
   - Multi-Turn-Konversation mit State
   - Fach-Compliance (Steuern, Vertraege, Buchhaltung)
 
-Bei Unsicherheit: target=sonnet, confidence=0.5."""
+Bei Unsicherheit: target=sonnet, confidence=0.5, reason=konkreter Grund fuer die Unsicherheit."""
 
 app = FastAPI(title="LFM Router")
 

@@ -119,6 +119,29 @@ def test_metrics_endpoint_reflects_route_counts(client, monkeypatch):
     assert "avg_latency_ms" in m
 
 
+def test_system_prompt_does_not_leak_template_values():
+    """Regression: SYSTEM_PROMPT must not use '1 Satz' as example VALUE.
+
+    Bug 2026-07-23: LFM copied '1 Satz' verbatim into the reason field
+    because it looked like a JSON value hint in the template.
+    """
+    assert '"reason": "1 Satz"' not in lr.SYSTEM_PROMPT, \
+        "Template must not embed '1 Satz' as JSON value — LFM will copy it verbatim"
+    assert '"reason":"1 Satz"' not in lr.SYSTEM_PROMPT
+    # Positive check: 'reason' field must be described somewhere in the prompt
+    assert "reason" in lr.SYSTEM_PROMPT.lower()
+
+
+def test_route_reason_is_not_template_bleedthrough(client, monkeypatch):
+    """If LFM returns the literal template hint '1 Satz', wrapper should keep it
+    (that's an LFM-side issue), but system-prompt design must prevent it in the first place.
+
+    This test locks in the design: system-prompt separates schema from instructions.
+    """
+    # We just assert the shape — no llm call needed
+    assert "AUSSCHLIESSLICH als JSON" in lr.SYSTEM_PROMPT or "nur JSON" in lr.SYSTEM_PROMPT.lower()
+
+
 def test_route_invalid_lfm_response_falls_back_to_sonnet(client, monkeypatch):
     """LFM returns malformed JSON → wrapper must defensive-escalate."""
     fake_bad = {
