@@ -16,10 +16,28 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            // ENV-basiert (siehe docs/APK_RELEASE_SIGNING.md).
+            // ATW_KEYSTORE_PATH, ATW_KEYSTORE_PASSWORD, ATW_KEY_ALIAS, ATW_KEY_PASSWORD
+            def keystorePath = System.getenv("ATW_KEYSTORE_PATH")
+            if (keystorePath != null && !keystorePath.isEmpty()) {
+                storeFile file(keystorePath)
+                storePassword System.getenv("ATW_KEYSTORE_PASSWORD") ?: ""
+                keyAlias System.getenv("ATW_KEY_ALIAS") ?: "atw-release"
+                keyPassword System.getenv("ATW_KEY_PASSWORD") ?: ""
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            // signingConfig nur wenn Keystore-ENV gesetzt (sonst debug-fallback,
+            // dokumentiert in tests/test_android_release_signing.py).
+            if (System.getenv("ATW_KEYSTORE_PATH") != null && !System.getenv("ATW_KEYSTORE_PATH").isEmpty()) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }
