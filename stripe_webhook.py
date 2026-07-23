@@ -519,12 +519,62 @@ def _handle_invoice_payment_succeeded(obj: dict) -> None:
     logger.info("invoice.payment_succeeded: sub=%s period_end=%s", sub_id, period_end)
 
 
+def _dispatch_payment_alert(
+    *,
+    event_type: str,
+    subscription_id: str,
+    customer_id: str | None = None,
+) -> None:
+    """Send M3 payment-failure alert to ntfy + telegram.
+
+    Errors are logged and swallowed — webhook MUST return 200 to Stripe.
+    """
+    import subprocess
+
+    msg = (
+        f"[ATW] Stripe {event_type}\n"
+        f"subscription: {subscription_id}\n"
+        f"customer: {customer_id or '-'}\n"
+        f"check: state/atw/subscriptions.db (status=past_due)"
+    )
+    ntfy_topic = os.environ.get("NTFY_TOPIC_ATW", "atw-payments")
+    ntfy_url = os.environ.get("NTFY_URL", "https://ntfy.sh") + f"/{ntfy_topic}"
+    try:
+        import urllib.request
+        req = urllib.request.Request(
+            ntfy_url,
+            data=msg.encode("utf-8"),
+            headers={"Title": "ATW Payment-Failed", "Priority": "high", "Tags": "warning,money"},
+        )
+        urllib.request.urlopen(req, timeout=5).read()
+        logger.info("ntfy dispatched: %s", ntfy_topic)
+    except Exception as e:
+        logger.error("ntfy dispatch failed: %s", e)
+
+    try:
+        subprocess.run(
+            ["tg", "--force", msg],
+            capture_output=True, timeout=8, check=False,
+        )
+        logger.info("tg dispatched (force flag for P0)")
+    except Exception as e:
+        logger.error("tg dispatch failed: %s", e)
+
+
 def _handle_invoice_payment_failed(obj: dict) -> None:
-    """Mark subscription as past_due."""
+    """Mark subscription as past_due and dispatch M3 alert (ntfy + tg)."""
     sub_id = obj.get("subscription")
     if sub_id:
         _db_update_status(sub_id, "past_due")
         logger.info("invoice.payment_failed: sub=%s → past_due", sub_id)
+        try:
+            _dispatch_payment_alert(
+                event_type="invoice.payment_failed",
+                subscription_id=sub_id,
+                customer_id=obj.get("customer"),
+            )
+        except Exception as e:
+            logger.error("alert dispatch failed (webhook still returns 200): %s", e)
 
 
 # ── K4: §356 Legal Pages ─────────────────────────────────────────────────────

@@ -306,6 +306,55 @@ def test_invoice_payment_failed_sets_past_due(client, db_path, monkeypatch):
     assert status == "past_due"
 
 
+# ── 6b. invoice.payment_failed → alert dispatched (M3) ──────────────────────
+
+def test_invoice_payment_failed_dispatches_alert(client, db_path, monkeypatch):
+    """R145 TDD: payment_failed MUST trigger _dispatch_payment_alert (ntfy+tg)."""
+    conn = sqlite3.connect(db_path)
+    conn.execute(
+        "INSERT INTO subscriptions (user_id, stripe_customer_id, stripe_subscription_id, tier, status, current_period_end, sso_enabled) VALUES (?,?,?,?,?,?,?)",
+        ("user_alert", "cus_alert", "sub_alert", "solo", "active", 9999, 0),
+    )
+    conn.commit()
+    conn.close()
+
+    alert_calls = []
+    monkeypatch.setattr(wh, "_dispatch_payment_alert", lambda **kw: alert_calls.append(kw))
+
+    event_data = {"subscription": "sub_alert", "customer": "cus_alert", "metadata": {}}
+    event = _make_event("invoice.payment_failed", event_data)
+    monkeypatch.setattr(wh.stripe.Webhook, "construct_event", MagicMock(return_value=event))
+
+    resp = _post_event(client, event)
+    assert resp.status_code == 200
+    assert len(alert_calls) == 1
+    assert alert_calls[0]["subscription_id"] == "sub_alert"
+    assert alert_calls[0]["event_type"] == "invoice.payment_failed"
+
+
+def test_invoice_payment_failed_alert_dispatch_error_does_not_crash(client, db_path, monkeypatch):
+    """Alert-Dispatch-Fehler darf webhook nicht crashen (must return 200 to Stripe)."""
+    conn = sqlite3.connect(db_path)
+    conn.execute(
+        "INSERT INTO subscriptions (user_id, stripe_customer_id, stripe_subscription_id, tier, status, current_period_end, sso_enabled) VALUES (?,?,?,?,?,?,?)",
+        ("user_x", "cus_x", "sub_x", "solo", "active", 9999, 0),
+    )
+    conn.commit()
+    conn.close()
+
+    def _boom(**kw):
+        raise RuntimeError("ntfy down")
+
+    monkeypatch.setattr(wh, "_dispatch_payment_alert", _boom)
+
+    event_data = {"subscription": "sub_x", "customer": "cus_x", "metadata": {}}
+    event = _make_event("invoice.payment_failed", event_data)
+    monkeypatch.setattr(wh.stripe.Webhook, "construct_event", MagicMock(return_value=event))
+
+    resp = _post_event(client, event)
+    assert resp.status_code == 200  # Stripe requires 200
+
+
 # ── 7. Unknown event ──────────────────────────────────────────────────────────
 
 def test_unknown_event_returns_200(client, monkeypatch):
