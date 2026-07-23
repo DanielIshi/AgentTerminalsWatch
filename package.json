@@ -11,6 +11,7 @@
     "@capacitor/android": "^8.4.2",
     "@capacitor/cli": "^8.4.2",
     "@capacitor/core": "^8.4.2",
+    "@sentry/browser": "^10.67.0",
     "react": "^18.3.0",
     "react-dom": "^18.3.0"
   },
