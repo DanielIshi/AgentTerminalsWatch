@@ -44,7 +44,16 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse
 
+import atw_sentry
+
 logger = logging.getLogger(__name__)
+
+# M2: Sentry init. No-op if SENTRY_DSN not set (zero cost, no SDK load).
+atw_sentry.init_sentry(
+    dsn=os.environ.get("SENTRY_DSN"),
+    environment=os.environ.get("SENTRY_ENV", "prod"),
+    release=os.environ.get("ATW_VERSION"),
+)
 
 # ── §312f Legal Texts (from LEGAL deliverable atw_widerruf_html_snippet_2026-07-19.md) ──
 
