@@ -28,7 +28,18 @@ export interface RestartResponse {
   message: string;
 }
 
-const BASE_URL = process.env.REACT_APP_API_URL ?? "http://localhost:8000";
+// 06.09.2026: zwei Fehler in einer Zeile.
+// 1. process.env.REACT_APP_* ist Create-React-App-Konvention. Dieses Projekt
+//    baut mit Vite, dort heisst es import.meta.env.VITE_*. Die Variable war
+//    also nie gesetzt und der Fallback griff immer.
+// 2. Der Fallback zeigte auf http://localhost:8000 -- im Browser des Nutzers
+//    ist das DESSEN Rechner, nicht der Server. Gemessen: "Failed to fetch"
+//    fuer /agents und /servers. Auf Port 8000 laeuft ausserdem eine
+//    icon-search-api, also selbst lokal der falsche Dienst.
+// Jetzt relativ: die App wird unter /atw/ ausgeliefert, die API liegt unter
+// /atw-api/ auf demselben Host, hinter derselben Anmeldung.
+const BASE_URL =
+  (import.meta as any).env?.VITE_API_URL ?? "/atw-api";
 
 async function _fetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, init);

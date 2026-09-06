@@ -21,6 +21,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import Optional
 
@@ -90,20 +91,47 @@ def _load_agents_json() -> dict:
         raise HTTPException(status_code=503, detail=f"agents.json malformed: {exc}") from exc
 
 
+# Ergebnis von agent-status.py fuer kurze Zeit halten. Gemessen 06.09.2026:
+# der Lauf dauert 29,2 s bei 30 s Timeout -- ohne Cache wartet jeder
+# Seitenaufruf fast eine halbe Minute, und zwei Nutzer starten ihn doppelt.
+_LIVE_CACHE: dict[str, object] = {"zeit": 0.0, "daten": {}}
+_LIVE_CACHE_SEKUNDEN = 20.0
+
+
 def _get_live_states() -> dict[str, dict]:
-    """Run agent-status.py --json and return parsed output dict keyed by agent name."""
+    """Run agent-status.py --json and return parsed output dict keyed by agent name.
+
+    Das Ergebnis wird _LIVE_CACHE_SEKUNDEN lang wiederverwendet.
+    """
     if not _AGENT_STATUS_PY.exists():
         return {}
+
+    jetzt = time.monotonic()
+    if _LIVE_CACHE["daten"] and jetzt - float(_LIVE_CACHE["zeit"]) < _LIVE_CACHE_SEKUNDEN:
+        return _LIVE_CACHE["daten"]  # type: ignore[return-value]
     try:
         result = subprocess.run(
             [sys.executable, str(_AGENT_STATUS_PY), "--json"],
-            capture_output=True, text=True, timeout=30
+            capture_output=True, text=True, timeout=90  # 06.09.2026: agent-status.py braucht gemessen 29,2 s; bei 30 s lief
+            # der Aufruf regelmaessig in den Timeout, lieferte {} und alle
+            # Agenten erschienen als DEAD. Leeres wird nicht gecacht, also
+            # wiederholte sich das bei jedem Seitenaufruf.
         )
         if result.returncode != 0 or not result.stdout.strip():
             return {}
-        data = json.loads(result.stdout)
+        # agent-status.py --json liefert JSON LINES: ein Objekt je Zeile, kein
+        # einzelnes Dokument. json.loads() darauf ergibt "Extra data: line 2
+        # column 1" -- die Ausnahme wurde unten still verschluckt, _get_live_states
+        # gab {} zurueck und JEDER Agent erschien als DEAD. Gemessen 06.09.2026.
+        roh = result.stdout.strip()
+        try:
+            data = json.loads(roh)
+        except json.JSONDecodeError:
+            data = [json.loads(z) for z in roh.splitlines() if z.strip()]
         if isinstance(data, list):
-            return {entry["name"]: entry for entry in data if "name" in entry}
+            data = {entry["name"]: entry for entry in data if "name" in entry}
+        _LIVE_CACHE["zeit"] = time.monotonic()
+        _LIVE_CACHE["daten"] = data
         return data
     except Exception:
         return {}
@@ -118,18 +146,39 @@ def _manager_state(technical: str) -> str:
     return mapping.get(technical, "DEAD")
 
 
+def _agenten_paare(ssot: dict) -> list[tuple[str, dict]]:
+    """(name, agent) aus agents.json -- vertraegt Dict- und Listenform.
+
+    Die SSOT fuehrt "agents" als Objekt Name -> Agent. Aelterer Code hier ging
+    von einer Liste aus und lief deshalb ueber die Schluessel: 'str' object has
+    no attribute 'get' (gemessen 06.09.2026, GET /agents gab 500).
+    """
+    roh = ssot.get("agents", {})
+    if isinstance(roh, dict):
+        return [(name, obj if isinstance(obj, dict) else {})
+                for name, obj in roh.items()]
+    paare = []
+    for eintrag in roh or []:
+        if isinstance(eintrag, dict):
+            paare.append((eintrag.get("name", ""), eintrag))
+    return paare
+
+
 def _build_agents(ssot: dict, live: dict[str, dict]) -> list[AgentInfo]:
     agents = []
-    for agent in ssot.get("agents", []):
-        name = agent.get("name", "")
+    for name, agent in _agenten_paare(ssot):
         live_entry = live.get(name, {})
         technical = live_entry.get("technical_state", live_entry.get("state", "unknown"))
         agents.append(AgentInfo(
             name=name,
-            server=agent.get("server", ""),
+            # "or" statt Default: agents.json fuehrt "server": null fuer Agenten
+            # ohne eigenen Host (WEB, WIN, CODEX-WEB). .get(k, "") liefert dann
+            # None, nicht "" -- und pydantic lehnt None fuer ein str-Feld ab.
+            # Gemessen 06.09.2026: ValidationError, GET /agents gab 500.
+            server=agent.get("server") or "",
             state=_manager_state(technical),
             technical_state=technical,
-            role=agent.get("role", ""),
+            role=agent.get("role") or "",
             session=live_entry.get("session"),
         ))
     return agents
@@ -171,7 +220,7 @@ def list_servers():
 @app.post("/agents/{name}/restart", response_model=RestartResponse)
 def restart_agent(name: str):
     ssot = _load_agents_json()
-    known = {a.get("name") for a in ssot.get("agents", [])}
+    known = {n for n, _ in _agenten_paare(ssot)}
     if name not in known:
         raise HTTPException(status_code=404, detail=f"Agent '{name}' not found")
 
@@ -193,7 +242,7 @@ def restart_agent(name: str):
 def kill_agent(name: str):
     """Queue a teammate kill command for the given agent."""
     ssot = _load_agents_json()
-    known = {a.get("name") for a in ssot.get("agents", [])}
+    known = {n for n, _ in _agenten_paare(ssot)}
     if name not in known:
         raise HTTPException(status_code=404, detail=f"Agent '{name}' not found")
 
@@ -215,7 +264,7 @@ def kill_agent(name: str):
 def respawn_agent(name: str):
     """Queue a teammate start command to respawn the given agent."""
     ssot = _load_agents_json()
-    known = {a.get("name") for a in ssot.get("agents", [])}
+    known = {n for n, _ in _agenten_paare(ssot)}
     if name not in known:
         raise HTTPException(status_code=404, detail=f"Agent '{name}' not found")
 
