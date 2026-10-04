@@ -21,6 +21,7 @@ import json
 import os
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 from typing import Optional
@@ -91,50 +92,97 @@ def _load_agents_json() -> dict:
         raise HTTPException(status_code=503, detail=f"agents.json malformed: {exc}") from exc
 
 
-# Ergebnis von agent-status.py fuer kurze Zeit halten. Gemessen 06.09.2026:
-# der Lauf dauert 29,2 s bei 30 s Timeout -- ohne Cache wartet jeder
-# Seitenaufruf fast eine halbe Minute, und zwei Nutzer starten ihn doppelt.
+# Ergebnis von agent-status.py zwischenspeichern und im HINTERGRUND aktuell
+# halten. Der Lauf dauert gemessen 90 s (04.10.2026; war 29,2 s am 06.09.2026
+# -- waechst mit toten Servern, deren SSH-Proben in Timeouts laufen). Solange er
+# synchron im Request lief, blockierte JEDER Seitenaufruf bis zu 90 s und die
+# Agent-Terminals-Ansicht blieb solange leer ("Loading agents...").
+# Jetzt laeuft agent-status.py in einem Daemon-Thread in Dauerschleife und
+# schreibt das Ergebnis in _LIVE_CACHE (+ Datei fuer warmen Neustart);
+# /agents liefert den Cache in Millisekunden und blockiert NIE.
 _LIVE_CACHE: dict[str, object] = {"zeit": 0.0, "daten": {}}
-_LIVE_CACHE_SEKUNDEN = 20.0
+_LIVE_CACHE_FILE = Path(__file__).resolve().parent / ".agents_cache.json"
+_REFRESH_INTERVAL_SEKUNDEN = 20.0   # Pause zwischen zwei Hintergrund-Laeufen
+_PROBE_TIMEOUT_SEKUNDEN = 120       # agent-status.py darf bis dahin brauchen
+_refresher_gestartet = False
+_refresher_lock = threading.Lock()
+
+
+def _run_probe() -> dict[str, dict]:
+    """agent-status.py --json EINMAL ausfuehren und als {name: eintrag} parsen.
+    Laeuft ausschliesslich im Hintergrund-Thread, nie im Request."""
+    if not _AGENT_STATUS_PY.exists():
+        return {}
+    result = subprocess.run(
+        [sys.executable, str(_AGENT_STATUS_PY), "--json"],
+        capture_output=True, text=True, timeout=_PROBE_TIMEOUT_SEKUNDEN,
+    )
+    if result.returncode != 0 or not result.stdout.strip():
+        return {}
+    # agent-status.py --json liefert JSON LINES: ein Objekt je Zeile, kein
+    # einzelnes Dokument. json.loads() darauf ergibt "Extra data: line 2
+    # column 1" -- deshalb Zeile fuer Zeile als Fallback (gemessen 06.09.2026).
+    roh = result.stdout.strip()
+    try:
+        data = json.loads(roh)
+    except json.JSONDecodeError:
+        data = [json.loads(z) for z in roh.splitlines() if z.strip()]
+    if isinstance(data, list):
+        data = {entry["name"]: entry for entry in data if "name" in entry}
+    return data
+
+
+def _cache_setzen(daten: dict[str, dict]) -> None:
+    _LIVE_CACHE["daten"] = daten
+    _LIVE_CACHE["zeit"] = time.time()
+    try:
+        _LIVE_CACHE_FILE.write_text(
+            json.dumps({"zeit": _LIVE_CACHE["zeit"], "daten": daten}, ensure_ascii=False),
+            encoding="utf-8",
+        )
+    except OSError:
+        pass  # Datei-Cache ist nur Komfort fuer warmen Neustart; nicht kritisch.
+
+
+def _cache_aus_datei_laden() -> None:
+    try:
+        roh = json.loads(_LIVE_CACHE_FILE.read_text(encoding="utf-8"))
+        if isinstance(roh.get("daten"), dict):
+            _LIVE_CACHE["daten"] = roh["daten"]
+            _LIVE_CACHE["zeit"] = float(roh.get("zeit", 0.0))
+    except (OSError, json.JSONDecodeError, ValueError, AttributeError):
+        pass
+
+
+def _refresher_loop() -> None:
+    while True:
+        try:
+            daten = _run_probe()
+            if daten:                       # Leeres nie cachen -- sonst alle DEAD.
+                _cache_setzen(daten)
+        except Exception:
+            pass                            # Schleife ueberlebt jeden Einzelfehler.
+        time.sleep(_REFRESH_INTERVAL_SEKUNDEN)
+
+
+def _refresher_starten() -> None:
+    """Startet den Hintergrund-Thread genau einmal (idempotent, thread-sicher)."""
+    global _refresher_gestartet
+    with _refresher_lock:
+        if _refresher_gestartet:
+            return
+        _refresher_gestartet = True
+    _cache_aus_datei_laden()                # warmer Start aus letzter Datei
+    threading.Thread(target=_refresher_loop, name="agent-status-refresher",
+                     daemon=True).start()
 
 
 def _get_live_states() -> dict[str, dict]:
-    """Run agent-status.py --json and return parsed output dict keyed by agent name.
-
-    Das Ergebnis wird _LIVE_CACHE_SEKUNDEN lang wiederverwendet.
-    """
-    if not _AGENT_STATUS_PY.exists():
-        return {}
-
-    jetzt = time.monotonic()
-    if _LIVE_CACHE["daten"] and jetzt - float(_LIVE_CACHE["zeit"]) < _LIVE_CACHE_SEKUNDEN:
-        return _LIVE_CACHE["daten"]  # type: ignore[return-value]
-    try:
-        result = subprocess.run(
-            [sys.executable, str(_AGENT_STATUS_PY), "--json"],
-            capture_output=True, text=True, timeout=90  # 06.09.2026: agent-status.py braucht gemessen 29,2 s; bei 30 s lief
-            # der Aufruf regelmaessig in den Timeout, lieferte {} und alle
-            # Agenten erschienen als DEAD. Leeres wird nicht gecacht, also
-            # wiederholte sich das bei jedem Seitenaufruf.
-        )
-        if result.returncode != 0 or not result.stdout.strip():
-            return {}
-        # agent-status.py --json liefert JSON LINES: ein Objekt je Zeile, kein
-        # einzelnes Dokument. json.loads() darauf ergibt "Extra data: line 2
-        # column 1" -- die Ausnahme wurde unten still verschluckt, _get_live_states
-        # gab {} zurueck und JEDER Agent erschien als DEAD. Gemessen 06.09.2026.
-        roh = result.stdout.strip()
-        try:
-            data = json.loads(roh)
-        except json.JSONDecodeError:
-            data = [json.loads(z) for z in roh.splitlines() if z.strip()]
-        if isinstance(data, list):
-            data = {entry["name"]: entry for entry in data if "name" in entry}
-        _LIVE_CACHE["zeit"] = time.monotonic()
-        _LIVE_CACHE["daten"] = data
-        return data
-    except Exception:
-        return {}
+    """Liefert den zuletzt im Hintergrund ermittelten Stand -- sofort, nie blockierend.
+    Beim allerersten Start ohne Datei-Cache ist er leer, bis der erste
+    Hintergrundlauf fertig ist; dann erscheinen Agenten kurz als DEAD."""
+    _refresher_starten()
+    return _LIVE_CACHE["daten"]  # type: ignore[return-value]
 
 
 def _manager_state(technical: str) -> str:
