@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AgentTerminalsWatch — Deine Agenten im Blick</title>
+  <meta name="description" content="AgentTerminalsWatch zeigt den Zustand deiner AI-Agenten auf dem Handy: wer lebt, wer hängt, wer wartet. Ab 19 EUR im Monat.">
+  <link rel="canonical" href="https://agentic-movers.com/agent-terminals-watch/">
+  <meta property="og:type" content="product">
+  <meta property="og:title" content="AgentTerminalsWatch — Deine Agenten im Blick">
+  <meta property="og:description" content="Der Zustand deiner AI-Agenten auf dem Handy. Ab 19 EUR im Monat.">
+  <meta property="og:url" content="https://agentic-movers.com/agent-terminals-watch/">
+  <meta property="og:site_name" content="Agentic Movers">
+  <meta property="og:locale" content="de_DE">
+  <style>
+    :root {
+      --grund: #0B0F0D;
+      --karte: #121815;
+      --rand: #1F2A24;
+      --text: #F2F4F1;
+      --gedaempft: #9AA69F;
+      --akzent: #90F010;
+      --meer: #00D2E6;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--grund); color: var(--text);
+      font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    .huelle { max-width: 1040px; margin: 0 auto; padding: 0 16px; }
+    header { padding: 20px 0; border-bottom: 1px solid var(--rand); }
+    header a { color: var(--gedaempft); text-decoration: none; font-size: 14px; }
+    header a:hover { color: var(--text); }
+    .held { padding: 64px 0 48px; }
+    .held h1 { font-size: clamp(28px, 6vw, 46px); line-height: 1.15; letter-spacing: -0.02em; }
+    .held p.unter { margin-top: 16px; font-size: clamp(17px, 2.5vw, 20px); color: var(--gedaempft); max-width: 60ch; }
+    .marken { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 24px; }
+    .marke {
+      font-size: 13px; padding: 5px 11px; border: 1px solid var(--rand);
+      border-radius: 999px; color: var(--gedaempft);
+    }
+    .marke.warte { border-color: #4A3A10; color: #D9B44A; }
+    h2 { font-size: clamp(20px, 3vw, 26px); margin-bottom: 20px; letter-spacing: -0.01em; }
+    section { padding: 40px 0; border-top: 1px solid var(--rand); }
+    .gitter { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+    .karte {
+      background: var(--karte); border: 1px solid var(--rand);
+      border-radius: 12px; padding: 20px;
+    }
+    .karte h3 { font-size: 17px; margin-bottom: 8px; }
+    .karte p { font-size: 15px; color: var(--gedaempft); }
+    .preise { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+    .preis { background: var(--karte); border: 1px solid var(--rand); border-radius: 12px; padding: 24px; }
+    .preis.hervor { border-color: var(--meer); }
+    .preis .stufe { font-size: 14px; color: var(--gedaempft); text-transform: uppercase; letter-spacing: 0.08em; }
+    .preis .zahl { font-size: 36px; font-weight: 700; margin: 10px 0 2px; }
+    .preis .zahl span { font-size: 15px; font-weight: 400; color: var(--gedaempft); }
+    .preis ul { list-style: none; margin-top: 16px; font-size: 15px; color: var(--gedaempft); }
+    .preis li { padding: 5px 0 5px 20px; position: relative; }
+    .preis li::before { content: "·"; position: absolute; left: 6px; color: var(--akzent); }
+    .hinweis {
+      background: #15110A; border: 1px solid #4A3A10; border-radius: 12px;
+      padding: 20px; margin-top: 24px; font-size: 15px; color: #D9B44A;
+    }
+    footer { padding: 32px 0 48px; border-top: 1px solid var(--rand); font-size: 14px; color: var(--gedaempft); }
+    footer nav { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 14px; }
+    footer a { color: var(--gedaempft); text-decoration: underline; text-underline-offset: 3px; }
+    footer a:hover { color: var(--text); }
+    @media (max-width: 480px) { .held { padding: 40px 0 32px; } section { padding: 32px 0; } }
+  </style>
+</head>
+<body>
+<div class="huelle">
+
+  <header><a href="/">&larr; Agentic Movers</a></header>
+
+  <div class="held">
+    <h1>Deine Agenten im Blick &mdash; auf dem Handy</h1>
+    <p class="unter">
+      AgentTerminalsWatch zeigt den Zustand deiner AI-Agenten in einer Ansicht:
+      wer arbeitet, wer hängt, wer auf eine Antwort wartet. Ohne SSH, ohne
+      Terminal, ohne dass du am Rechner sitzen musst.
+    </p>
+    <div class="marken">
+      <span class="marke">Android</span>
+      <span class="marke">Version 0.1.0</span>
+      <a class="marke warte" href="https://play.google.com/store/apps/details?id=com.spocky.agentterminals" target="_blank" rel="noopener">Play Store</a>
+    </div>
+  </div>
+
+  <section>
+    <h2>Was es tut</h2>
+    <div class="gitter">
+      <div class="karte">
+        <h3>Zustand je Agent</h3>
+        <p>Lebt, arbeitet, hängt oder wartet &mdash; je Agent, mit Zeitpunkt
+           der letzten Regung.</p>
+      </div>
+      <div class="karte">
+        <h3>Über Rechner hinweg</h3>
+        <p>Mehrere Server in einer Liste, nicht eine Sitzung je Fenster.</p>
+      </div>
+      <div class="karte">
+        <h3>Wer auf dich wartet</h3>
+        <p>Offene Freigaben und Rückfragen zuerst &mdash; damit niemand
+           stillsteht, weil eine Antwort fehlt.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Preise</h2>
+    <div class="preise">
+      <div class="preis">
+        <div class="stufe">Solo</div>
+        <div class="zahl">19 &euro; <span>/ Monat</span></div>
+        <ul>
+          <li>bis 5 Agenten</li>
+          <li>1 Rechner</li>
+          <li>Zustand und Verlauf</li>
+        </ul>
+      </div>
+      <div class="preis hervor">
+        <div class="stufe">Team</div>
+        <div class="zahl">49 &euro; <span>/ Monat</span></div>
+        <ul>
+          <li>bis 25 Agenten</li>
+          <li>mehrere Rechner</li>
+          <li>Freigaben und Rückfragen</li>
+        </ul>
+      </div>
+      <div class="preis">
+        <div class="stufe">Enterprise</div>
+        <div class="zahl">199 &euro; <span>/ Monat</span></div>
+        <ul>
+          <li>unbegrenzt Agenten</li>
+          <li>eigene Instanz</li>
+          <li>Vorrang bei Störungen</li>
+        </ul>
+      </div>
+    </div>
+    <p style="margin-top:16px;font-size:14px;color:var(--gedaempft)">
+      Jahreszahlung 20 % günstiger. Alle Preise netto, zzgl. USt.
+    </p>
+
+    <div class="hinweis">
+      <strong>Noch nicht kaufbar.</strong> Der Store-Eintrag und der Zahlweg
+      sind in Vorbereitung. Diese Seite nennt den Stand, damit niemand etwas
+      bestellt, was noch nicht ausgeliefert werden kann.
+    </div>
+  </section>
+
+  <footer>
+    <nav>
+      <a href="/legal/impressum/">Impressum</a>
+      <a href="/legal/datenschutz/">Datenschutz</a>
+      <a href="/legal/agb/">AGB</a>
+      <a href="/legal/widerruf/">Widerruf</a>
+    </nav>
+    Bratschke Solutions GmbH &middot; AgentTerminalsWatch 0.1.0
+  </footer>
+
+</div>
+</body>
+</html>
