@@ -3,6 +3,7 @@
   "private": true,
   "scripts": {
     "test": "node test/auth.test.js && node test/sessions.test.js && node --test test/tasks.test.js test/task-routes.test.js test/delivery.test.js test/integration.test.js",
-    "start": "node server.js"
+    "start": "node server.js",
+    "test:native-protocol": "node --test test/native-protocol.test.js"
   }
 }

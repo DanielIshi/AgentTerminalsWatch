@@ -54,6 +54,8 @@ The local CLI and gateway share `gateway/state/tasks.sqlite` (or WATCH_TASK_DB).
 
 Live on netcup1: watch-mtls-gateway restarted alone on 15 November; health=200, unsigned /v1/tasks=403. Existing server certificate pin matches recovered app configuration. Code backup before deployment: `/home/claude/backups/watch-20261115/gateway-before-ceo.tgz`. Real-device signed requests remain unverified.
 
+`npm run test:native-protocol --prefix gateway` additionally compiles the real Java SecureGatewayClient, certificate pin verifier and fingerprint code against JVM adapters for Android Context/Base64/device-key access and a temporary endpoint configuration. The actual Java signing/HTTP/JSON code then talks to a real isolated Node gateway: UTF8, accepted ACK, stable retry, snapshot, 409 conflict and wrong TLS pin rejection all pass. These JVM adapters do not exercise the Android Keystore implementation, speech UI or actual device networking.
+
 ## Blocking installation issue
 
 Original APK signing certificate SHA256:

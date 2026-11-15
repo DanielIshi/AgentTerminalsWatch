@@ -1,5 +1,9 @@
 # AgentTerminalsWatch
 
+**Native Watch CEO app:** `native/` extends the preserved installed-app candidate `com.spockymagicai.agentterminals` (1.1-ceo). Signed task gateway: `gateway/`. Build, tests, deployment evidence and the unresolved original-signing-key issue: [docs/WATCH_CEO_RELEASE.md](docs/WATCH_CEO_RELEASE.md). The generated APK is currently a preview, not a verified in-place device update.
+
+The React/Capacitor app below is a separate package.
+
 Android app (Capacitor + Vite/React) — zeigt den Status aller SpockyMagicAI-Agenten in Echtzeit.
 
 **App-ID:** `com.spocky.agentterminals` | **Version:** 0.1.0
