@@ -4,11 +4,11 @@ import android.util.Log;
 
 /* loaded from: classes2.dex */
 public final class OpenTerminalTask implements Runnable {
-    private final MainActivity activity;
+    private final TerminalsActivity activity;
     private final String sessionId;
     private final String sessionName;
 
-    public OpenTerminalTask(MainActivity activity, String sessionId, String sessionName) {
+    public OpenTerminalTask(TerminalsActivity activity, String sessionId, String sessionName) {
         this.activity = activity;
         this.sessionId = sessionId;
         this.sessionName = sessionName;

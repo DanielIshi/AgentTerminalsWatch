@@ -4,9 +4,9 @@ import android.util.Log;
 
 /* loaded from: classes2.dex */
 public final class ConnectTask implements Runnable {
-    private final MainActivity activity;
+    private final TerminalsActivity activity;
 
-    public ConnectTask(MainActivity activity) {
+    public ConnectTask(TerminalsActivity activity) {
         this.activity = activity;
     }
 

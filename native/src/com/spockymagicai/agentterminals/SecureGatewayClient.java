@@ -25,6 +25,20 @@ public final class SecureGatewayClient {
         this.context = context;
     }
 
+    public JSONObject requestJson(String method, String path, JSONObject payload) throws Exception {
+        String response = signedRequest(method, path, payload == null ? new byte[0] : payload.toString().getBytes("UTF-8"));
+        JSONObject result = responseJson(response);
+        if (!response.matches("(?s)^HTTP 2[0-9][0-9]\\n.*")) {
+            throw new GatewayException(response.startsWith("HTTP 409") ? 409 : response.startsWith("HTTP 403") ? 403 : 500,
+                result.optString("error", "Serverfehler"));
+        }
+        return result;
+    }
+    public static final class GatewayException extends Exception {
+        public final int status;
+        public GatewayException(int status, String message) { super(message); this.status = status; }
+    }
+
     public String loadSessions() throws Exception {
         return signedGet("/api/sessions");
     }

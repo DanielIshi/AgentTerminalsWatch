@@ -4,9 +4,9 @@ import android.util.Log;
 
 /* loaded from: classes2.dex */
 public final class IdentityTask implements Runnable {
-    private final MainActivity activity;
+    private final TerminalsActivity activity;
 
-    public IdentityTask(MainActivity activity) {
+    public IdentityTask(TerminalsActivity activity) {
         this.activity = activity;
     }
 
