@@ -38,6 +38,7 @@ public class MainActivity extends Activity {
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
         prefs=getSharedPreferences("ceo-overview",MODE_PRIVATE);
+        BackgroundSync.schedule(this);
         outbox=new Outbox(new Outbox.Storage(){public String read(){return prefs.getString("durable_outbox","");}public boolean write(String value){return prefs.edit().putString("durable_outbox",value).commit();}});
         try {tasks=new JSONArray(prefs.getString("tasks","[]"));}catch(Exception ignored){}
         if(state!=null){page=state.getString("page","overview");selected=state.getString("selected","");replyTask=state.getString("replyTask","");questionId=state.getString("questionId","");questionVersion=state.getInt("questionVersion",0);appendSpeech=state.getBoolean("appendSpeech",false);}
@@ -48,7 +49,7 @@ public class MainActivity extends Activity {
         else if(terminal!=null && terminal.matches("ceo|marketing|strategy|operations|ict")) TerminalActivity.open(this,terminal,terminal);
     }
     @Override protected void onResume(){super.onResume();active=true;handler.post(refresh);}
-    @Override protected void onPause(){active=false;handler.removeCallbacks(refresh);super.onPause();}
+    @Override protected void onPause(){active=false;handler.removeCallbacks(refresh);prefs.edit().putLong("foreground_until",0).apply();super.onPause();}
     @Override protected void onDestroy(){handler.removeCallbacksAndMessages(null);worker.shutdown();super.onDestroy();}
     @Override public void onSaveInstanceState(Bundle out){out.putString("page",page);out.putString("selected",selected);out.putString("replyTask",replyTask);out.putString("questionId",questionId);out.putInt("questionVersion",questionVersion);out.putBoolean("appendSpeech",appendSpeech);super.onSaveInstanceState(out);}
     @Override public void onBackPressed(){if("overview".equals(page))super.onBackPressed();else showOverview();}
@@ -82,7 +83,7 @@ public class MainActivity extends Activity {
         button("Entwurf / Texteingabe",()->showEditor(false));
         button("Agenten und Terminals",()->startActivity(new Intent(this,TerminalsActivity.class)));
         button("Aktualisieren",this::sync);
-        button("Einstellungen",()->{page="settings";screen("Sprache und Zugang");text("Systemdiktat: Audio verarbeitet der auf diesem Gerät gewählte Spracherkennungsdienst. Die App sendet nur den bestätigten Text an den Server. Keine automatische Sprachausgabe.",15);text("Gerätekennung: "+prefs.getString("device_fingerprint","Noch nicht initialisiert"),11);text("Zugang: signierte Anfragen und geprüftes Serverzertifikat. Keine neue Agentensitzung beim Öffnen.",15);button("Zur Übersicht",this::showOverview);});
+        button("Einstellungen",()->{page="settings";screen("Sprache und Zugang");button("Benachrichtigungen erlauben",()->{if(android.os.Build.VERSION.SDK_INT>=33)requestPermissions(new String[]{"android.permission.POST_NOTIFICATIONS"},42);else startActivity(new Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(android.provider.Settings.EXTRA_APP_PACKAGE,getPackageName()));});text("Rückfragen/Ergebnisse: Hintergrundabgleich etwa alle 15 Minuten, vom System ggf. verzögert. Beim Öffnen sofort. Kein dauerhafter Terminalkanal.",13);text("Systemdiktat: Audio verarbeitet der auf diesem Gerät gewählte Spracherkennungsdienst. Die App sendet nur den bestätigten Text an den Server. Keine automatische Sprachausgabe.",15);text("Gerätekennung: "+prefs.getString("device_fingerprint","Noch nicht initialisiert"),11);text("Zugang: signierte Anfragen und geprüftes Serverzertifikat. Keine neue Agentensitzung beim Öffnen.",15);button("Zur Übersicht",this::showOverview);});
     }
     private boolean isRunning(String s){return s.equals("accepted")||s.equals("scheduled")||s.equals("in_progress");}
     private String label(String s){switch(s){case "accepted":return "Angenommen";case "scheduled":return "Eingeplant";case "in_progress":return "In Bearbeitung";case "needs_input":return "Braucht dich";case "completed":return "Fertig";case "failed":return "Fehlgeschlagen";case "cancelled":return "Abgebrochen";default:return s;}}
@@ -143,8 +144,8 @@ public class MainActivity extends Activity {
         }catch(Exception e){Toast.makeText(this,"Entwurf bleibt erhalten: "+e.getMessage(),Toast.LENGTH_LONG).show();}
     }
     private void sync(){
-        if(syncing||isFinishing()||worker.isShutdown())return;syncing=true;
-        worker.execute(()->{
+        if(syncing||isFinishing()||worker.isShutdown())return;syncing=true;prefs.edit().putLong("foreground_until",System.currentTimeMillis()+60000).apply();
+        worker.execute(()->{synchronized(BackgroundSync.SYNC_LOCK){
             String error=null;JSONArray received=null;String accepted="";
             try{
                 DeviceIdentity.ensureKey(this);prefs.edit().putString("device_fingerprint",DeviceIdentity.fingerprint(this)).apply();SecureGatewayClient client=new SecureGatewayClient(this);
@@ -162,6 +163,6 @@ public class MainActivity extends Activity {
             }catch(Exception e){error=e instanceof SecureGatewayClient.GatewayException && ((SecureGatewayClient.GatewayException)e).status==409?"Rückfrage veraltet oder ID-Konflikt – Versand prüfen":e instanceof SecureGatewayClient.GatewayException && ((SecureGatewayClient.GatewayException)e).status==403?"Anmeldung prüfen – Entwurf bleibt erhalten":"Offline / Server nicht erreichbar";}
             final String failure=error, ackId=accepted;final JSONArray snapshot=received;
             runOnUiThread(()->{syncing=false;if(isFinishing()||isDestroyed())return;network=failure==null?"Verbunden":failure;if(snapshot!=null)tasks=snapshot;if(!ackId.isEmpty())Toast.makeText(this,"Auftrag angenommen · "+ackId,Toast.LENGTH_LONG).show();if("overview".equals(page))showOverview();else if("list".equals(page))showList(filter);else if("detail".equals(page))showDetail(selected);});
-        });
+        }});
     }
 }

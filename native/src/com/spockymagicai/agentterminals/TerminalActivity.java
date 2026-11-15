@@ -90,13 +90,18 @@ public final class TerminalActivity extends Activity {
         renderControls();
         this.root.addView(this.controls);
         setContentView(this.root);
-        refreshTerminal();
-        scheduleRefresh();
     }
 
     /* renamed from: lambda$onCreate$0$com-spockymagicai-agentterminals-TerminalActivity, reason: not valid java name */
     /* synthetic */ void m0xf6416683(View v) {
         toggleAdvancedControls();
+    }
+
+    @Override protected void onResume() {
+        super.onResume(); this.stopped=false; refreshTerminal(); scheduleRefresh();
+    }
+    @Override protected void onPause() {
+        this.stopped=true; this.handler.removeCallbacksAndMessages(null); super.onPause();
     }
 
     @Override // android.app.Activity
@@ -124,6 +129,7 @@ public final class TerminalActivity extends Activity {
     }
 
     private void refreshTerminal() {
+        if (this.stopped) return;
         setStatus("Refreshing...");
         new Thread(new Runnable() { // from class: com.spockymagicai.agentterminals.TerminalActivity$$ExternalSyntheticLambda10
             @Override // java.lang.Runnable
@@ -274,7 +280,7 @@ public final class TerminalActivity extends Activity {
     }
 
     private void setStatus(String text) {
-        this.statusText.setText(text);
+        runOnUiThread(() -> { if (!isDestroyed()) this.statusText.setText(text); });
     }
 
     private boolean isScrolledToBottom() {
