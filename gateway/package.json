@@ -1,0 +1,8 @@
+{
+  "name": "watch-agent-gateway",
+  "private": true,
+  "scripts": {
+    "test": "node test/auth.test.js && node test/sessions.test.js",
+    "start": "node server.js"
+  }
+}

@@ -32,3 +32,6 @@ venv/
 logs/
 tmp/
 
+native/build/
+recovery/
+gateway/state/
