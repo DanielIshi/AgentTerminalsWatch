@@ -20,6 +20,12 @@ const allowlist = parseAllowlist(process.env.WATCH_GATEWAY_ALLOWED_FINGERPRINTS 
 const sessionSecret = process.env.WATCH_GATEWAY_SESSION_SECRET || "dev-only-change-me";
 const nonceCache = new Map();
 const launchTokens = new Map();
+const path = require("path");
+const { TaskStore } = require("./lib/tasks");
+const { taskRoute } = require("./lib/task-routes");
+const { startDelivery } = require("./lib/delivery");
+const taskStore = new TaskStore(process.env.WATCH_TASK_DB || path.join(__dirname, "state/tasks.sqlite"));
+if (process.env.WATCH_DELIVERY_DISABLED !== "1") startDelivery(taskStore);
 
 function sendJson(res, status, body) {
   const payload = JSON.stringify(body);
@@ -43,8 +49,9 @@ function sendText(res, status, body, headers = {}) {
 
 function readBody(req, callback) {
   const chunks = [];
-  req.on("data", (chunk) => chunks.push(chunk));
-  req.on("end", () => callback(Buffer.concat(chunks)));
+  let size = 0, tooLarge = false;
+  req.on("data", (chunk) => { size += chunk.length; if (size > 65536) tooLarge = true; else chunks.push(chunk); });
+  req.on("end", () => callback(tooLarge ? null : Buffer.concat(chunks)));
   req.on("error", () => callback(null));
 }
 
@@ -132,7 +139,9 @@ const server = https.createServer(
         return;
       }
 
-      const auth = verifySignedRequest(req, body, allowlist, nonceCache);
+      let auth;
+      try { auth = verifySignedRequest(req, body, allowlist, nonceCache); }
+      catch (_) { sendJson(res, 403, {ok:false,error:"invalid_signature"}); return; }
       if (!auth.ok) {
         sendJson(res, auth.status, {
           ok: false,
@@ -148,6 +157,12 @@ const server = https.createServer(
       }
 
       const parsedPath = new URL(req.url, "https://watch-gateway.local").pathname;
+
+      if (parsedPath.startsWith("/v1/")) {
+        const result = taskRoute(req.method, parsedPath, body, taskStore);
+        sendJson(res, result.status, result.body);
+        return;
+      }
 
       if (parsedPath.startsWith("/api/web-session/")) {
         const id = decodeURIComponent(parsedPath.replace("/api/web-session/", ""));

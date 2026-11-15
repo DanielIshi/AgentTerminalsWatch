@@ -2,7 +2,7 @@
   "name": "watch-agent-gateway",
   "private": true,
   "scripts": {
-    "test": "node test/auth.test.js && node test/sessions.test.js",
+    "test": "node test/auth.test.js && node test/sessions.test.js && node --test test/tasks.test.js test/task-routes.test.js test/delivery.test.js",
     "start": "node server.js"
   }
 }
