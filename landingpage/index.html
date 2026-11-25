@@ -85,7 +85,13 @@
     <div class="marken">
       <span class="marke">Android</span>
       <span class="marke">Version 0.1.0</span>
-      <a class="marke warte" href="https://play.google.com/store/apps/details?id=com.spocky.agentterminals" target="_blank" rel="noopener">Play Store</a>
+      <!-- GH#1753: der Play-Store-Eintrag existiert nicht (gemessen 25.11.2026,
+           play.google.com/store/apps/details?id=com.spocky.agentterminals -> HTTP 404).
+           Ein Knopf mit Store-Beschriftung, der ins Leere fuehrt, widerspricht
+           dem Hinweis weiter unten ("Noch nicht kaufbar"). Bis die App
+           veroeffentlicht ist, steht hier kein Verweis, sondern der Stand.
+           Der Link kommt zurueck, sobald die URL 200 liefert. -->
+      <span class="marke warte" title="Store-Eintrag in Vorbereitung (GH#1753)">Play Store: noch nicht veröffentlicht</span>
     </div>
   </div>
 
